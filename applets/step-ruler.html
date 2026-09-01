@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>סרגל הצעדים</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --green:#6f9f4a; --green-d:#3f6b26; --tape:#f4c821; --tape-d:#7a5c00; --ink:#2a2f33; --muted:#6a7a82; --blue:#1c7293; }
+  *{box-sizing:border-box;}
+  /* overflow:hidden here, not just "make the content fit": this page is always
+     embedded (an inline panel or a popup iframe, never its own tab), so a
+     scrollbar has nowhere useful to go anyway -- both host boxes (see
+     APPLET_INLINE/APPLET_POPUP in design.py) are sized generously enough that
+     nothing actually needs to scroll; this just guards against a stray pixel
+     of overflow ever showing a scrollbar instead of silently clipping. */
+  html,body{height:100%;overflow:hidden;}
+  body{margin:0;font-family:'Assistant',Arial,sans-serif;color:var(--ink);background:#fff;}
+  .app{max-width:1100px;height:100%;margin:0 auto;padding:10px 16px;display:flex;flex-direction:column;}
+  /* The top two lines carry the applet's own title and instructions -- bigger
+     and bolder than the rest, which is body/label text by comparison. */
+  h1{font-size:40px;margin:0 0 2px;color:var(--blue);font-weight:800;}
+  .sub{margin:0 0 10px;color:var(--muted);font-size:22px;font-weight:700;}
+  .modebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .modebar .lbl{font-size:20px;color:var(--muted);font-weight:600;}
+  .modebar button{font-family:inherit;font-size:19px;padding:8px 18px;border:1px solid var(--blue);background:#fff;color:var(--blue);border-radius:22px;cursor:pointer;font-weight:600;}
+  .modebar button.active{background:var(--blue);color:#fff;}
+  .fields{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+  .field{background:#f4f7f9;border:1px solid #dbe6ec;border-radius:12px;padding:6px 8px;flex:1;min-width:180px;}
+  .field.result{background:#eef6e7;border-color:#bcd99a;}
+  .field label{display:block;font-size:16px;color:var(--muted);margin-bottom:2px;font-weight:600;}
+  .field input[type=number]{width:100%;font-size:40px;font-weight:700;padding:4px 6px;border:1px solid #cdd8de;border-radius:8px;text-align:center;font-family:inherit;}
+  .field .out{font-size:48px;font-weight:700;color:var(--green-d);text-align:center;padding:0;}
+  .field .units{display:flex;gap:6px;margin-top:4px;justify-content:center;}
+  .field .units button{font-family:inherit;font-size:16px;padding:4px 10px;border:1px solid var(--blue);background:#fff;color:var(--blue);border-radius:14px;cursor:pointer;}
+  .field .units button.active{background:var(--blue);color:#fff;}
+  /* Thinner grey mat around the ruler stage than before, trading padding for
+     bigger tick-label/unit-badge text (see .ticklbl/.runit below). */
+  .stage{background:#cfd6d9;border-radius:12px;padding:6px 10px 14px;margin-bottom:10px;direction:ltr;flex:1;min-height:0;display:flex;}
+  .track{position:relative;width:100%;height:160px;margin:auto 0;}
+  .print{position:absolute;}
+  .print svg{width:100%;height:auto;display:block;overflow:visible;}
+  .trail{position:absolute;height:26px;border-radius:13px;background:var(--green);border:3px solid var(--green-d);}
+  .traillab{position:absolute;transform:translateX(-50%);font-weight:700;color:var(--green-d);font-size:18px;background:rgba(255,255,255,.8);padding:1px 10px;border-radius:10px;}
+  .ruler{position:absolute;height:24px;background:var(--tape);border-radius:5px;border:1px solid var(--tape-d);}
+  .tick{position:absolute;width:2px;background:var(--tape-d);}
+  .ticklbl{position:absolute;transform:translateX(-50%);font-size:30px;color:var(--tape-d);white-space:nowrap;font-weight:800;}
+  .runit{position:absolute;background:var(--tape-d);color:#fff;font-weight:700;font-size:24px;padding:3px 12px;border-radius:9px;white-space:nowrap;transform:translate(-50%,-50%);}
+  .equiv{text-align:center;color:var(--muted);font-size:26px;font-weight:600;}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>סרגל הצעדים</h1>
+  <p class="sub">בחרו מה לחשב, הזינו את הנתונים, וראו את הצעדים על הסרגל.</p>
+  <div class="modebar">
+    <span class="lbl">מה לחשב?</span>
+    <button data-c="dist" class="active">מרחק</button>
+    <button data-c="steps">מספר צעדים</button>
+    <button data-c="len">אורך צעד</button>
+  </div>
+  <div class="fields">
+    <div class="field" id="fDist">
+      <label>מרחק</label>
+      <input id="dist" type="number" value="200" min="0">
+      <div class="out" id="distOut"></div>
+      <div class="units">
+        <button data-u="cm" class="active">ס"מ</button>
+        <button data-u="m">מטר</button>
+        <button data-u="km">ק"מ</button>
+      </div>
+    </div>
+    <div class="field" id="fSteps">
+      <label>מספר צעדים</label>
+      <input id="steps" type="number" value="5" min="0">
+      <div class="out" id="stepsOut"></div>
+    </div>
+    <div class="field" id="fLen">
+      <label>אורך צעד (ס"מ)</label>
+      <input id="len" type="number" value="40" min="1">
+      <div class="out" id="lenOut"></div>
+    </div>
+  </div>
+  <div class="stage"><div class="track" id="track"></div></div>
+  <div class="equiv" id="equiv"></div>
+</div>
+<script>
+  var SOLE="M 16,-15 C 30,-18 58,-22 88,-25 C 108,-27 120,-24 129,-14 C 135,-6 135,6 129,14 C 120,24 108,27 88,25 C 70,23 60,9 46,11 C 34,12 24,13 16,15 C 2,12 2,-12 16,-15 Z";
+  var ARCH="M 96,-24 C 104,-8 104,8 96,24";
+  function footSVG(flip){
+    var inner='<path d="'+SOLE+'" fill="#6f9f4a" stroke="#3f6b26" stroke-width="4" stroke-linejoin="round"/>'+
+              '<path d="'+ARCH+'" fill="none" stroke="#4d7a2e" stroke-width="4" stroke-linecap="round"/>';
+    if(flip) inner='<g transform="scale(1,-1)">'+inner+'</g>';
+    return '<svg viewBox="0 -30 138 60" preserveAspectRatio="xMinYMid meet">'+inner+'</svg>';
+  }
+  var FOOT_CM=27, VBW=138, VBH=60;
+  var ULAB={cm:'ס"מ',m:'מטר',km:'ק"מ'}, UFAC={cm:1,m:100,km:100000};
+  var compute='dist', unit='cm';
+  var len=document.getElementById('len'), steps=document.getElementById('steps'), dist=document.getElementById('dist');
+  var lenOut=document.getElementById('lenOut'), stepsOut=document.getElementById('stepsOut'), distOut=document.getElementById('distOut');
+  var fLen=document.getElementById('fLen'), fSteps=document.getElementById('fSteps'), fDist=document.getElementById('fDist');
+  var track=document.getElementById('track'), equiv=document.getElementById('equiv');
+  var RULER_TOP=96, RULER_H=24, LEFTPAD=6;
+  function fmt(n){ if(!isFinite(n)) n=0; return Number(n.toFixed(3)).toLocaleString('he-IL'); }
+  function setField(f,inp,out,isResult){
+    if(isResult){f.classList.add('result');inp.style.display='none';out.style.display='block';}
+    else{f.classList.remove('result');inp.style.display='block';out.style.display='none';}
+  }
+  function render(){
+    var L=Math.max(0,Number(len.value)||0);
+    var n=Math.max(0,Math.floor(Number(steps.value)||0));
+    var dCm=Math.max(0,(Number(dist.value)||0))*UFAC[unit];
+    var totalCm=0,nSteps=0,Lp=L;
+    setField(fLen,len,lenOut,compute==='len');
+    setField(fSteps,steps,stepsOut,compute==='steps');
+    setField(fDist,dist,distOut,compute==='dist');
+    if(compute==='dist'){ totalCm=n*L; nSteps=n; Lp=L; distOut.textContent=fmt(totalCm/UFAC[unit])+' '+ULAB[unit]; }
+    else if(compute==='steps'){ var sc=L>0?Math.round(dCm/L):0; nSteps=sc; totalCm=dCm; Lp=L; stepsOut.textContent=fmt(sc); }
+    else { var lc=n>0?dCm/n:0; nSteps=n; totalCm=dCm; Lp=lc; lenOut.textContent=fmt(lc)+' ס"מ'; }
+    draw(nSteps,Lp,totalCm);
+    equiv.textContent=fmt(totalCm)+' ס"מ  =  '+fmt(totalCm/100)+' מטר  =  '+fmt(totalCm/100000)+' ק"מ';
+  }
+  function draw(nSteps,L,totalCm){
+    track.innerHTML='';
+    if(totalCm<=0){return;}
+    var W=track.clientWidth||880;
+    // shared scale; reserve one foot-length on the right so the last toe fits and the first heel sits exactly at 0
+    var pxPerCm=(W-2*LEFTPAD)/(totalCm+FOOT_CM);
+    function xof(cm){return LEFTPAD+cm*pxPerCm;}
+    var footPx=FOOT_CM*pxPerCm;
+    // ruler bar 0..total
+    var r=document.createElement('div'); r.className='ruler';
+    r.style.left=xof(0)+'px'; r.style.width=(xof(totalCm)-xof(0))+'px'; r.style.top=RULER_TOP+'px';
+    track.appendChild(r);
+    // ticks + labels (nice step in the selected unit)
+    var total=totalCm/UFAC[unit];
+    var raw=total/6, mag=Math.pow(10,Math.floor(Math.log(raw)/Math.LN10)), nn=raw/mag;
+    var st=(nn<1.5?1:nn<3?2:nn<7?5:10)*mag;
+    for(var v=0; v<=total+1e-9; v+=st){
+      var cm=v*UFAC[unit], px=xof(cm);
+      var t=document.createElement('div'); t.className='tick'; t.style.left=px+'px'; t.style.top=(RULER_TOP-4)+'px'; t.style.height=(RULER_H+8)+'px'; track.appendChild(t);
+      var l=document.createElement('div'); l.className='ticklbl'; l.style.left=px+'px'; l.style.top=(RULER_TOP+RULER_H+11)+'px'; l.textContent=fmt(v); track.appendChild(l);
+    }
+    var ru=document.createElement('div'); ru.className='runit'; ru.style.left=xof(totalCm)+'px'; ru.style.top=(RULER_TOP+RULER_H/2)+'px'; ru.textContent=ULAB[unit]; track.appendChild(ru);
+    // footprints: heel exactly on each cumulative mark 0, L, 2L, ...  (first at 0)
+    if(nSteps>0 && L>0 && nSteps<=40 && footPx>=6){
+      for(var k=0;k<=nSteps;k++){
+        var heelCm=k*L; if(heelCm>totalCm+0.001) break;
+        var h=footPx*(VBH/VBW);
+        var d=document.createElement('div'); d.className='print';
+        d.style.left=xof(heelCm)+'px'; d.style.width=footPx+'px';
+        var lift=(k%2? 16:0);
+        d.style.top=(RULER_TOP-6-h-lift)+'px';
+        d.innerHTML=footSVG(k%2===1);
+        track.appendChild(d);
+      }
+    } else if(nSteps>0){
+      var bar=document.createElement('div'); bar.className='trail';
+      bar.style.left=xof(0)+'px'; bar.style.width=(xof(totalCm)-xof(0))+'px'; bar.style.top=(RULER_TOP-40)+'px';
+      track.appendChild(bar);
+      var lab=document.createElement('div'); lab.className='traillab'; lab.style.left=xof(totalCm/2)+'px'; lab.style.top=(RULER_TOP-38)+'px'; lab.textContent=fmt(nSteps)+' צעדים'; track.appendChild(lab);
+    }
+  }
+  [len,steps,dist].forEach(function(el){el.addEventListener('input',render);});
+  document.querySelectorAll('.modebar button').forEach(function(b){b.addEventListener('click',function(){
+    document.querySelectorAll('.modebar button').forEach(function(x){x.classList.remove('active');});
+    b.classList.add('active'); compute=b.dataset.c; render();
+  });});
+  document.querySelectorAll('.field .units button').forEach(function(b){b.addEventListener('click',function(){
+    document.querySelectorAll('.field .units button').forEach(function(x){x.classList.remove('active');});
+    b.classList.add('active'); unit=b.dataset.u; render();
+  });});
+  window.addEventListener('resize',render);
+  render();
+</script>
+</body>
+</html>

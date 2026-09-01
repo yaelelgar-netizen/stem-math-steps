@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8">
+<title>previewer — צעדים ומונים</title><style>
+ body{margin:0;font:14px/1.4 "Assistant",system-ui,sans-serif;background:#14161c;color:#e8eaf2}
+ header{display:flex;gap:10px;align-items:center;padding:9px 14px;border-bottom:1px solid #2b3240;flex-wrap:wrap}
+ button{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid #3a4356;background:#1e2430;color:inherit;cursor:pointer}
+ button:hover{background:#27303f}
+ #status{font-family:ui-monospace,monospace} #status.ok{color:#68d89b} #status.bad{color:#ff9b9b}
+ #meta{font-family:ui-monospace,monospace;opacity:.75}
+ iframe{width:100%;height:calc(100vh - 51px);border:0;display:block;background:#000}
+ select{font:inherit;background:#1e2430;color:inherit;border:1px solid #3a4356;border-radius:8px;padding:6px}
+</style></head><body>
+<header><button id="prev">&#9664; אחורה</button><button id="next">קדימה &#9654;</button>
+<select id="jump"></select><span id="status">ממתין…</span><span id="meta"></span></header>
+<iframe id="f" src="index.html"></iframe>
+<script>
+var EXPECT=20,f=document.getElementById('f'),st=document.getElementById('status'),
+    mt=document.getElementById('meta'),jp=document.getElementById('jump'),cur=1,tot=0;
+for(var i=1;i<=EXPECT;i++){var o=document.createElement('option');o.value=i;o.textContent='מסך '+i;jp.appendChild(o);}
+function send(m){f.contentWindow.postMessage(m,'*');}
+function draw(){var ok=tot===EXPECT;
+ st.textContent=tot?tot+' (1…'+tot+') '+(ok?'\u2714 הגשר עובד':'\u2718 '+EXPECT+' צפויים'):'לא נטען';
+ st.className=tot?(ok?'ok':'bad'):'bad';jp.value=cur;}
+window.addEventListener('message',function(e){var d=e.data||{};
+ if(!d.type||String(d.type).indexOf('LOMDA_')!==0)return;
+ if(d.total)tot=d.total; if(d.screen)cur=d.screen;
+ mt.textContent='screen '+cur+' · score '+(d.score||0)+(d.type==='LOMDA_COMPLETE'?' · הושלם':'');
+ draw();});
+f.addEventListener('load',function(){setTimeout(function(){send({type:'LOMDA_PING'});},60);});
+document.getElementById('next').onclick=function(){send({type:'LOMDA_GOTO',screen:Math.min(cur+1,EXPECT)});};
+document.getElementById('prev').onclick=function(){send({type:'LOMDA_GOTO',screen:Math.max(cur-1,1)});};
+jp.onchange=function(){send({type:'LOMDA_GOTO',screen:Number(jp.value)});};
+</script></body></html>

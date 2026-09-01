@@ -1,0 +1,1051 @@
+/* Generated from design.py — every number there records how it was
+   established (PSD bounds confirmed by template-matching the designer's
+   own component PNGs against her screenshots). Do not hand-edit. */
+:root {
+  --ink: #111111;
+  --on-dark: #FFFFFF;
+  --correct: #58B363;
+  --wrong: #C0504D;
+  --feedback-bg: #363636;
+  --stem-fs: 36px;
+  --label-fs: 38px;
+  --opt-fs: 34px;
+  --fb-fs: 36px;
+  --popup-scrim: 0.54;
+  --feedback-fill: rgba(4, 4, 4, 0.80);
+  --feedback-radius: 22px;
+  --radio-ink: #17165B;
+  --vctrl-left: 150px;
+  --vctrl-right: 150px;
+  --vctrl-h: 58px;
+  --help-fill: #FFF4C1;
+  --help-border: #262626;
+  --help-radius: 32px;
+  --help-fs: 36px;
+  --ribbon-fs: 34px;
+  --line-h: 1.390;
+}
+
+/*
+ * לומדת צעדים ומונים — styles.
+ *
+ * The :root block above is generated from design.py.
+ *
+ * Three structural facts:
+ *   1. The design is a fixed 1920x1080 stage. Everything is absolutely positioned
+ *      in those coordinates and the stage is scaled to the viewport by
+ *      script.js/fitStage(). A coordinate taken from the PSD is used verbatim.
+ *   2. It is RTL, and in this design FORWARD is on the LEFT, back on the RIGHT.
+ *      The עזרה and סרגל צעדים buttons are on the LEFT (PSD x=42) — they are not
+ *      mirrored to the right, which is a mistake that is easy to make here.
+ *   3. Chrome is the designer's own PNG artwork, not CSS shapes. The buttons carry
+ *      their labels baked in; everything the learner reads is live text.
+ */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #101216;
+  font-family: "Assistant", "Segoe UI", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* ---- the stage -----------------------------------------------------------
+ * Centred with explicit negative margins, not grid alignment: an item LARGER
+ * than its container does not reliably centre-overflow, and the scaled stage
+ * ended up in a corner with the navigation off-screen.
+ */
+#stage { position: absolute; inset: 0; overflow: hidden; }
+
+#app {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  margin-left: -960px;
+  margin-top: -540px;
+  transform-origin: center center;
+  background: #1b1d22;
+  overflow: hidden;
+  direction: rtl;
+  color: var(--ink);
+}
+
+.screen { position: absolute; inset: 0; display: none; }
+.screen.active { display: block; }
+
+/* ---- artwork ------------------------------------------------------------- */
+#app img { position: absolute; display: block; }
+.art, .ui { pointer-events: none; }
+
+.graphic { position: absolute; overflow: hidden; transition: transform .4s ease; }
+.graphic img { position: absolute; }
+
+/* The map shrinks in place (top-left anchored, matching GRAPHIC_BOX's own
+   top-left so nothing moves outside the frame) once graded, to free room for
+   the feedback panel underneath -- see FEEDBACK_BY_SCREEN in design.py for
+   the box this frees up. .55 = GRADED_SHRINK.q5 in
+   script.js/check_behaviour.py; keep the two in sync. */
+/* translateX per request: top-left-anchored shrinking alone left the shrunk
+   map sitting left-aligned with GRAPHIC_BOX's own left edge (141), not
+   centred over the feedback panel below it. Panel centre-x = 141 +
+   FEEDBACK_BY_SCREEN['q5'][2]/2 = 141+500 = 641; shrunk map width = 1090*.55
+   = 599.5, so its left needs to land at 641-599.5/2 = 341.25 -- a 200.25px
+   shift right of the unshifted 141. translateX first in the list (applied
+   AFTER scale, per CSS's right-to-left composition) so the 200.25px is real
+   screen pixels, not scaled-down ones. */
+.screen.graded[data-slug="q5"] .graphic { transform: translateX(200.25px) scale(.55); transform-origin: top left; }
+/* Per request: .btn-zoom (BTN_ZOOM in design.py) sits at a fixed position
+   near the FULL-size map's own top-left corner always -- it doesn't live
+   inside .graphic (it's a sibling, so it can stay clickable/undistorted at
+   its own resting size the rest of the time), so the transform above never
+   touched it, leaving it stranded away from the map's corner once the map
+   shrinks. Same transform as the map: matches its own new top-left, and
+   scales down with it so it stays in the same proportion to the map instead
+   of reading oversized next to a now-smaller map. */
+.screen.graded[data-slug="q5"] .btn-zoom { transform: translateX(200.25px) scale(.55); transform-origin: top left; }
+
+/* q7: per request, the chart stays q6's own full size (300,171,737,485 --
+   see GRAPHIC_BOX in design.py) while answering, and shrinks only once
+   graded, to clear FEEDBACK_BY_SCREEN['q7']'s own top (590) -- unshrunk the
+   chart's bottom edge (171+485=656) runs 66px into it. .85 ("shrink it a
+   little", not q5's aggressive .55) brings the bottom edge to
+   171+485*.85=583, clearing it with a small margin. Top-left anchored, no
+   translateX needed: the request was just to shrink in place, not recentre.
+   .btn-zoom is a sibling of .graphic (not nested in it), same as q5's, so it
+   needs the same transform repeated to shrink and stay on the chart's
+   corner instead of stranding at full size. */
+.screen.graded[data-slug="q7"] .graphic { transform: scale(.85); transform-origin: top left; }
+.screen.graded[data-slug="q7"] .btn-zoom { transform: scale(.85); transform-origin: top left; }
+
+@media (prefers-reduced-motion: reduce) {
+  .graphic { transition: none; }
+}
+
+/* שאלה 1's ruler diagrams: live text over the shared ruler.png + each screen's
+   own overlay art. Positions come pre-computed in pixels (build_lomda.py's
+   ruler_graphic(), from design.py's RULER_DIAGRAMS), not percentages, because
+   the scale is uniform (same factor for x and y) rather than the non-uniform
+   per-axis stretch שאלה 5's map needs. */
+.ruler-label {
+  position: absolute;
+  font-weight: 800;
+  color: #111;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.ruler-label-seg, .ruler-label-tick, .ruler-label-tick2, .ruler-label-box {
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.ruler-label-unit, .ruler-label-unit2 { transform: translateY(-50%); }
+
+
+/* ---- hit targets --------------------------------------------------------
+ * A button is a transparent hit area with the designer's PNG inside it, so the
+ * artwork stays pixel-exact while the control keeps real button semantics.
+ */
+.hit {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  z-index: 20;
+}
+
+.hit .inner { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hit:focus-visible { outline: 4px solid #299FD4; outline-offset: 4px; border-radius: 12px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hit { transition: transform .1s ease; }
+  .hit:hover { transform: scale(1.04); }
+}
+
+/* Every question screen's own text/controls float in exactly like a narration
+   bubble does (same resting state, same transition, same .in trigger added in
+   goTo() in script.js) -- "float in" was previously only the bubbles on story
+   and video screens; a question screen has no bubble, so its own text and
+   options just appeared static the moment the screen switched on. */
+.q-label, .q-stem, .opt, .answer {
+  opacity: 0;
+  transform: translateY(-24px);
+  transition: opacity .5s ease, transform .5s ease;
+}
+
+.q-label.in, .q-stem.in, .opt.in, .answer.in { opacity: 1; transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .q-label, .q-stem, .opt, .answer { transition: none; }
+}
+
+/* ---- question text ------------------------------------------------------
+ * right:131 puts the text's right edge at x=1789, inside the frame (which ends
+ * at x=1819). right:70 would put it outside the frame entirely.
+ */
+.q-label {
+  position: absolute;
+  z-index: 15;
+  font-size: var(--label-fs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.q-stem {
+  position: absolute;
+  z-index: 15;
+  font-size: var(--stem-fs);
+  font-weight: 600;
+  line-height: var(--line-h);
+}
+
+.q-stem div { white-space: nowrap; }
+/* the narrow right-hand column on the chart and map screens */
+.q-stem.wrap div { white-space: normal; }
+.q-stem div:last-child { font-weight: 700; }
+
+/* ---- numeric answer ----------------------------------------------------- */
+.answer {
+  position: absolute;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: var(--stem-fs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.answer .slot { position: relative; display: block; flex: none; }
+.answer .slot .ui { inset: 0; width: 100%; height: 100%; }
+
+.q-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  font: 700 38px "Assistant", sans-serif;
+  color: var(--ink);
+  direction: ltr;
+}
+
+.q-input:focus-visible { outline: 3px solid #299FD4; outline-offset: 2px; }
+
+/* The feedback screen shows the learner's OWN answer as a filled pill: green when
+   correct, red when not, white text either way, with a tick or cross beside it.
+   Neutral grey until graded, which is what you see landing here without answering. */
+.answer .pill {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  border-radius: 16px;
+  background: #E4E4E8;
+  color: var(--ink);
+  font: 700 38px "Assistant", sans-serif;
+  direction: ltr;
+}
+
+.screen.graded .answer .pill { display: grid; }
+.answer.is-correct .pill { background: var(--correct); color: var(--on-dark); }
+.answer.is-wrong .pill { background: var(--wrong); color: var(--on-dark); }
+
+/* a vector tick/cross beside the 70px-tall answer box -- see mark_icon() in
+   build_lomda.py for why this replaced the old raster (16x14/35x32, stretched
+   to this size, visibly pixelated). Colour comes from currentColor. */
+#app .answer .mark { position: relative; display: none; flex: none; height: 44px; }
+#app .answer .mark.ok { width: 50px; color: var(--correct); }
+#app .answer .mark.no { width: 48px; color: var(--wrong); }
+#app .answer.is-correct .mark.ok { display: block; }
+#app .answer.is-wrong .mark.no { display: block; }
+
+/* ---- options ------------------------------------------------------------ */
+.opt {
+  position: absolute;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: var(--opt-fs);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* appearance:none defensively: the input is already zero-size/opacity:0 so no
+   native control should paint at all, but some browser/OS/a11y combinations
+   still force a minimum native checkbox indicator through regardless --
+   belt-and-suspenders against that, not something reproduced here. */
+.opt input { position: absolute; opacity: 0; width: 0; height: 0; appearance: none; -webkit-appearance: none; }
+
+/* A sentence-length option wraps inside its measured column. The dot (which
+   the mark now lives inside, rather than beside as a separate icon) sits
+   against the first line rather than centring on the whole block. */
+.opt.wrap { align-items: flex-start; white-space: normal; }
+.opt.wrap .dot { margin-top: 8px; }
+/* Checkboxes (multi-select, e.g. q2b) nudged further down than the 8px above
+   per a later request -- 8px sat a little high of the first line's own
+   baseline. Scoped to checkboxes since only those were flagged; q7's own
+   wrapped radio dots keep the base 8px. */
+.opt.wrap input[type="checkbox"] ~ .dot { margin-top: 14px; }
+.opt.wrap .txt { display: block; }
+
+/* radio_buttons.png is 19x70 and holds TWO IDENTICAL rings — not an
+   unselected/selected pair, which is what the sprite-slide here assumed. So the
+   ring is drawn from the top 19px of the artwork and the selected state is a fill
+   in the ring's own colour, which is what the design asks for. */
+.opt .dot {
+  position: relative;
+  width: 19px;
+  height: 19px;
+  flex: none;
+  overflow: hidden;
+}
+
+.opt .dot img { position: absolute; left: 0; top: 0; width: 19px; height: 70px; }
+
+/* inset:0 (not the ring's own measured 4px hole) deliberately covers the ring
+   artwork completely, outer band and all -- at inset:1px the fill matched the
+   ring's colour over its inner edge fine (both navy), but left the ring's
+   OUTERMOST 1px uncovered; invisible against navy-on-navy, but a visible thin
+   navy rim once feedback recolours the fill green/red (a colour the ring
+   itself never is). Covering the whole dot, not just its hole, is correct
+   either way -- the ring's only job is showing an EMPTY circle, which is moot
+   once it is filled. */
+.opt .dot .fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--radio-ink);
+  opacity: 0;
+}
+
+.opt input:checked ~ .dot .fill { opacity: 1; }
+
+/* A checkbox reads better as a filled square than a dot. Keyed off the input
+   TYPE, not :checked -- the graded feedback fill (.was-right/.was-picked
+   below) recolours a checkbox that may no longer be :checked (a correct
+   option the learner didn't pick), and needs the same square shape or it
+   reverts to the round default and no longer matches the square ring drawn
+   below. */
+/* 0, not a slight round like 3px -- per repeated request (q2b/screen 8,
+   q5/screen 14) even a modest round read as "still round" against the fully
+   square ring drawn below.
+   inset:-2px (not the base rule's inset:0): the actual bug behind all of
+   that, found at last -- inset:0 sits the fill INSIDE the checkbox's own
+   2px border (the border box is bigger than the padding box it resolves
+   against), so the border ring stayed visible as a mismatched-colour frame
+   around the fill the moment it recoloured for a pick or a graded right/
+   wrong, on every single test, in every screenshot. -2px (matching the
+   border's own width) extends the fill out OVER the border instead of
+   stopping short of it, the same way the radio ring image (comment above)
+   never had this problem: that image already fills the WHOLE dot box, no
+   border sitting outside it to leave uncovered. */
+.opt input[type="checkbox"] ~ .dot .fill { border-radius: 0; inset: -2px; }
+
+/* A checkbox question (multi-select, e.g. שאלה 2ב/5) drew a ROUND ring
+   (radio_buttons.png, shared with every single-select question) around a
+   square fill once selected -- a mismatch the moment the fill appeared. Drawn
+   as a plain square border instead of the ring artwork for checkboxes only;
+   `~` reaches .dot because it is the input's own next sibling. #app prefix:
+   #app img {display:block} (an ID selector) otherwise beats this class-only
+   rule on specificity regardless of source order, so the ring stayed visible
+   despite display:none here. */
+#app .opt input[type="checkbox"] ~ .dot img { display: none; }
+/* overflow:visible, overriding .dot's own overflow:hidden (needed elsewhere to
+   crop the radio sprite, moot here since the sprite is display:none above):
+   .dot sizes itself with border-box, so its 2px border sits INSIDE the same
+   19x19 box as .fill's inset:-2px target -- but overflow:hidden clips a child
+   at the padding edge regardless, cutting the -2px extension off before it
+   ever reaches the border strip. That silently undid the inset:-2px fix for
+   checkboxes specifically (radios have no border to cover, so it never showed
+   there) and was the actual reason the frame kept reappearing across repeated
+   reports despite the geometry above being correct on paper. */
+.opt input[type="checkbox"] ~ .dot { border: 2px solid var(--radio-ink); border-radius: 0; overflow: visible; }
+
+/* Feedback recolours the same fill instead of leaving it navy -- green+check for
+   every correct option (whether or not the learner picked it, so a wrong guess
+   still reveals which one was right), red+cross for a wrong pick. Matches the
+   כימיה 1 reference: the mark lives INSIDE the dot, not as an icon beside it. */
+.opt.was-right .dot .fill { background: var(--correct); opacity: 1; }
+.opt.was-picked:not(.was-right) .dot .fill { background: var(--wrong); opacity: 1; }
+
+/* the glyphs sit centred inside the 19px dot, over the fill -- white so they
+   read against the green/red, sized to leave a visible ring of fill colour
+   around them rather than filling the whole dot. */
+.opt .mark {
+  position: absolute;
+  inset: 4px;
+  display: none;
+  color: var(--on-dark);
+  pointer-events: none;
+}
+
+.opt.was-right .mark.ok { display: block; }
+.opt.was-picked:not(.was-right) .mark.no { display: block; }
+.opt input:disabled ~ .txt { opacity: .9; }
+.opt:focus-within { outline: 3px solid #299FD4; outline-offset: 6px; border-radius: 8px; }
+
+/* ---- drag chain --------------------------------------------------------- */
+.cell {
+  position: absolute;
+  width: 126px;
+  height: 101px;
+  z-index: 14;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.cell img { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.cell .val {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 700 30px "Assistant", sans-serif;
+  color: var(--on-dark);
+  z-index: 1;
+}
+
+.cell > span:not(.val) {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 700 30px "Assistant", sans-serif;
+  color: var(--on-dark);
+  z-index: 1;
+}
+
+.cell.slot-cell { cursor: pointer; }
+.cell.slot-cell .val { color: var(--ink); }
+/* An empty slot shows the light box (its own default); a filled one swaps to
+   the SAME dark box a token itself is, so a filled slot reads as "this is now
+   one of the dark blocks", not as if it were still an empty white one with
+   text dropped on top. #app prefix on the two display:none rules: #app img
+   {display:block} (an ID selector) otherwise beats them on specificity
+   regardless of source order -- same fix as the checkbox ring and
+   hide-when-graded elsewhere in this file -- which is why an empty slot was
+   showing dark (the filled-art image, never actually hidden) instead of the
+   light box underneath it. */
+#app .slot .filled-art { display: none; }
+#app .slot[data-filled] .empty-art { display: none; }
+.slot[data-filled] .filled-art { display: block; }
+/* The same Chrome text-paint glitch already hit on שאלה 5's map labels: text
+   over a background that only just became visible via a toggled SIBLING's
+   display:block (rather than the text's own element) sometimes never gets
+   painted, with a completely correct DOM/computed-style otherwise --
+   opacity:.999 alone (the map labels' own fix) did not fix this one.
+   What did, there and here: giving the text's own element an actual
+   background, painted in the dark box's own colour (#17165B, sampled
+   directly from slide17_dark_rectangle.png) so it costs nothing visually.
+   border-radius (measured off slide17_dark_rectangle.png's own corner curve,
+   ~18-19px in its 123x99 native size -- 20px here errs slightly larger, safe
+   since both are the same colour, so a fraction of a px of the image peeking
+   through at the curve is invisible) matches that art's rounded corners --
+   without it this background is a plain square and visibly squares off the
+   art's own rounded corners once filled. */
+.slot[data-filled] .val { color: var(--on-dark); background: #17165B; border-radius: 20px; }
+/* Per request: once graded, the leftover (never-dragged) tokens animate up
+   to the column BANK_GRADED_X/Y0/PITCH in design.py describes, out of the
+   feedback panel's way -- showResult()'s drag branch in script.js just
+   changes left/top on them; this transition is what makes that a visible
+   slide instead of an instant jump. Left off .cell generally since options/
+   slots/other cells never move via left/top after being placed. */
+.cell.token { cursor: grab; transition: left .6s ease, top .6s ease; }
+.cell.token.picked { outline: 5px solid #299FD4; outline-offset: 3px; border-radius: 18px; }
+/* Dragged into a slot: gone from the bank entirely, not just dimmed -- a
+   used token has nothing left to do there. */
+.cell.token.used { display: none; }
+.cell:focus-visible { outline: 4px solid #299FD4; outline-offset: 3px; border-radius: 18px; }
+
+/* Per-slot graded state (per request): a small coloured check/X badge above
+   each slot (there is no ring to draw the mark inside, unlike .opt's dot, so
+   it gets its own circular backdrop) plus the slot's own fill recoloured
+   green/red -- same mechanism as .slot[data-filled] .val's navy background
+   above, just a different colour, and it wins on specificity (4 selectors
+   vs. that rule's 3) without needing an #app prefix. */
+.slot-cell .mark {
+  position: absolute;
+  left: 50%;
+  top: -38px;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 50%;
+  color: var(--on-dark);
+  display: none;
+  z-index: 16;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .3);
+}
+.slot-cell.is-correct .mark.ok { display: block; background: var(--correct); }
+.slot-cell.is-wrong .mark.no { display: block; background: var(--wrong); }
+.slot-cell.is-correct[data-filled] .val { background: var(--correct); }
+.slot-cell.is-wrong[data-filled] .val { background: var(--wrong); }
+
+/* The two-stage drag reveal (per request, same idea as stem-chem-volume's
+   own "זו טעות, לחצו כאן..." flow): a wrong answer shows this short prompt
+   first, with the full worked explanation (.fb-body's own <p>s) hidden --
+   script.js's own text stays out of it per this project's "every string the
+   learner reads is already static markup" rule (see script.js's own top
+   comment), so both states are baked in at build time and it only toggles
+   which one is visible. */
+/* .fb-reveal is a SIBLING of .fb-body, not a child (see feedback() in
+   build_lomda.py), so it does not inherit .fb-body's own font-size/color/
+   alignment -- restated here to match rather than falling back to the
+   browser default 16px. */
+.fb-reveal {
+  display: none;
+  /* 0, not 10px, per request -- sits right below .fb-head's own "זו טעות"
+     (which still carries its own 4px margin-bottom below). */
+  margin-top: 0;
+  font-size: var(--fb-fs);
+  font-weight: 600;
+  color: var(--on-dark);
+  text-align: center;
+}
+.fb-panel.needs-reveal .fb-body p { display: none; }
+.fb-panel.needs-reveal .fb-reveal { display: block; }
+.fb-reveal-link {
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---- the graded state --------------------------------------------------
+ * Feedback is a state of the question screen, not a screen of its own. Answering
+ * adds `.graded` to the section, which reveals the panel, swaps in the worked
+ * answer diagram where the deck draws one, and hides צדקתי — the design's feedback
+ * state has no submit button, so the question locks once checked.
+ */
+.screen .fb-panel { display: none; }
+.screen.graded .fb-panel { display: block; }
+.screen .graphic.dia-ans { display: none; }
+.screen.graded .graphic.dia-ans { display: block; }
+.screen.graded .graphic.dia-q { display: none; }
+/* An auto-discovered PSD art layer (not a GRAPHIC_BOX diagram, so not
+   .graphic.dia-q/-ans above) hidden once graded on the screens design.py's
+   HIDE_ART_WHEN_GRADED lists, freeing its box for the feedback panel
+   (FEEDBACK_BY_SCREEN in design.py) instead -- e.g. q3's watch photo. #app
+   prefix: #app img {display:block} (an ID selector) otherwise beats this
+   class-only rule on specificity regardless of source order -- same fix as
+   the checkbox ring below. */
+#app .screen.graded img.hide-when-graded { display: none; }
+/* Submit only appears once there is something to submit -- script.js's
+   updateSubmitVisibility() toggles has-answer as the learner types/picks/
+   fills every slot. !important because graded (once checked, the question
+   locks and shows feedback instead) must always win over has-answer, and the
+   two rules would otherwise tie on specificity depending on source order. */
+.btn-check { display: none; }
+.screen.has-answer .btn-check { display: block; }
+.screen.graded .btn-check { display: none !important; }
+
+/* ---- feedback panel ----------------------------------------------------- */
+.feedback {
+  position: absolute;
+  z-index: 18;
+  background: var(--feedback-fill);
+  border-radius: var(--feedback-radius);
+}
+
+.feedback .fb-body {
+  position: relative;
+  z-index: 1;
+  padding: 20px 28px;
+  color: var(--on-dark);
+  font-size: var(--fb-fs);
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.feedback .fb-body p { margin: 0 0 2px; }
+
+/* q3's feedback text enlarged to 35px (vs the shared 36px --fb-fs everywhere
+   else -- an intentional 1px under it, not a rounding slip) per request, now
+   that HIDE_ART_WHEN_GRADED/FEEDBACK_BY_SCREEN['q3'] in design.py give it
+   the watch photo's own box to sit in instead of the small default one. */
+.screen[data-slug="q3"] .feedback .fb-body { font-size: 35px; }
+/* Same idea for q4's own new box (FEEDBACK_BY_SCREEN['q4'] in design.py) --
+   .fb-reveal included since it needs the same size and does not inherit it
+   from .fb-body (see .fb-reveal's own comment). */
+.screen[data-slug="q4"] .feedback .fb-body,
+.screen[data-slug="q4"] .feedback .fb-reveal { font-size: 35px; }
+/* q4's 8 rows (per request, one <p> per row -- see the explanation text in
+   content.json) at 35px and the shared 1.35 line-height/20px padding need
+   485px, but only 459px is actually clear between the chain cells above
+   (bottom edge 487) and the frame's own inner bound (946) -- see
+   FEEDBACK_BY_SCREEN['q4'] in design.py for the full math. Tightened here
+   instead of shrinking the 35px font itself, which was the explicit ask. */
+.screen[data-slug="q4"] .feedback .fb-body { padding-top: 10px; padding-bottom: 10px; line-height: 1.3; }
+
+/* Run the lines together when the panel has no room for one line per deck line.
+   script.js turns this on only after the roomier layout has been tried. */
+.feedback .fb-body.reflow p { display: inline; margin: 0; }
+.feedback .fb-body.reflow p + p::before { content: " "; }
+.feedback .fb-head { display: block; font-weight: 700; margin-bottom: 4px; }
+.feedback.is-correct .fb-head { color: #8FE3A8; }
+.feedback.is-wrong .fb-head { color: #FFB4B4; }
+.feedback.is-neutral .fb-head { display: none; }
+
+/* ---- narration ribbon --------------------------------------------------- */
+.ribbon-text {
+  position: absolute;
+  z-index: 15;
+  font-size: var(--ribbon-fs);
+  font-weight: 600;
+  line-height: 1.34;
+}
+
+.ribbon-text p { margin: 0 0 4px; }
+
+.ribbon-fallback {
+  position: absolute;
+  z-index: 10;
+  background: #fff;
+  border-bottom-left-radius: 42px;
+  border-bottom-right-radius: 42px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+}
+
+/* ---- popups -------------------------------------------------------------
+ * The panel dims behind an open popup, at the measured opacity. Only the panel:
+ * the photo and the progress bar stay as they are, which is what the design does.
+ */
+.scrim {
+  position: absolute;
+  z-index: 30;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.screen.popup-open .scrim { opacity: var(--popup-scrim); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .scrim { transition: opacity .15s ease; }
+}
+
+/* inset:0 gives every popup a DEFINITE 1920x1080 containing block. The help
+ * popup used to rely on its own explicit width/height for this (the fixed
+ * bitmap it drew), and lost that once the cream box became a shrink-to-fit
+ * child sized to its own content instead -- without a sized ancestor, a nested
+ * shrink-to-fit box's available width is ambiguous, and it rendered far wider
+ * than its own max-width, running the box hundreds of pixels past the frame.
+ * The ruler popup keeps its own inline left/top/width/height, which simply
+ * overrides this by specificity, so it is unaffected. */
+.popup { position: absolute; inset: 0; display: none; z-index: 40; }
+.popup.open { display: block; }
+
+/* The cream body is drawn and sized to its own content -- a fixed bitmap forced
+ * every help text into the SAME box regardless of length, so a one-line answer
+ * sat in a needlessly huge bubble while a five-line one had to shrink to 17px to
+ * fit at all. left/top/max-width come from design.py on the element itself; the
+ * box is otherwise unsized, so it shrink-to-fits its content up to that max width
+ * and wraps within it -- exactly "wrap around the text" rather than the other
+ * way around. It shares .ribbon-bubble with every other narration bubble in the
+ * unit, so it floats in the same way on open. */
+/* Left padding is deliberately asymmetric (62px vs 30px on the right): the ×
+ * disc sits at a FIXED position (BTN_HELP) that overlaps the box's own left
+ * edge by 45px, because HELP_BOX_LEFT was kept from the old baked composition,
+ * where the artist could always draw the text clear of that overlap by eye.
+ * This box shrink-to-fits its own content instead, so a short help text (one
+ * line, minimal width) put its own left EDGE -- text and all -- right under
+ * the disc, which sits above it (z-index 15 vs 13) and simply hid the glyphs
+ * that landed there. Padding that clears the full overlap, regardless of how
+ * narrow the box gets, keeps the disc over empty padding every time instead. */
+.help-box {
+  padding: 22px 30px 22px 62px;
+  background: var(--help-fill);
+  border: 8px solid var(--help-border);
+  border-radius: var(--help-radius);
+}
+
+.popup.help .help-text {
+  font-size: var(--help-fs);
+  font-weight: 600;
+  line-height: 1.3;
+  color: #1A1A1A;
+  text-align: right;
+}
+
+.popup.help .help-text p { margin: 0 0 6px; }
+.popup.help .help-text p:last-child { margin-bottom: 0; }
+
+/* Opening help hides the עזרה button and draws the × in its place -- the shared
+ * close_applet_button.png art, sized to the button it is standing in for.
+ * aria-expanded is already maintained by togglePopup, so it doubles as the
+ * state selector. */
+#app .btn-help[aria-expanded="true"] { display: none; }
+
+.popup.help .help-close {
+  z-index: 15;             /* above .help-box (13): the box tucks partly under it */
+}
+
+.popup.ruler {
+  background: #fff;
+  border: 6px solid #17165B;
+  border-radius: 28px;
+  padding: 16px;
+}
+
+.popup.ruler iframe { width: 100%; height: 100%; border: 0; border-radius: 14px; }
+
+/* Every × close control in the unit (help, ruler, score, zoom) is this same
+ * close_applet_button.png art -- just a hit area sized/positioned to match,
+ * with the image filling it via .inner (same pattern as .hit .inner below). */
+.popup-close {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  z-index: 3;
+}
+
+.popup-close .inner, .score-close .inner, .zoom-close .inner {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.popup-close:focus-visible { outline: 4px solid #299FD4; outline-offset: 3px; }
+
+/* A subtle drop shadow, not a heavy outline: the 5px navy border read as a second
+   frame competing with the question panel it sits inside. */
+.applet-inline {
+  position: absolute;
+  z-index: 14;
+  border: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 3px 14px rgba(17, 22, 60, .22);
+  transition: transform .4s ease;
+}
+
+.applet-inline iframe { width: 100%; height: 100%; border: 0; }
+
+/* q2a used to shrink its applet in place once graded (scale(.8827), matching
+   APPLET_GRADED_SCALE in script.js/check_behaviour.py) to free room for the
+   feedback panel stacked underneath it. Per a later request the applet no
+   longer shrinks -- it stays the same size as the question state -- since the
+   feedback panel now sits beside it (FEEDBACK_BY_SCREEN["q2a"] in design.py)
+   rather than underneath it, so there is nothing left to make room for. */
+/* q2b has no room for even a shrunk applet once its own four wrapped options
+   and their feedback take their space -- hidden entirely once graded, its
+   full footprint handed to the feedback panel instead. */
+.screen.graded[data-slug="q2b"] .applet-inline { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .applet-inline { transition: none; }
+}
+
+/* ---- zoom --------------------------------------------------------------- */
+.zoom-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  background: rgba(0, 0, 0, .74);
+  z-index: 50;
+  cursor: zoom-out;
+}
+
+.zoom-overlay.open { display: grid; }
+
+/* Half-overlapping the image's own top-left corner (a common "badge" close
+   position) -- .zoom-map (below) is a wrapper build_lomda.py sizes in PIXELS to
+   exactly the "contain within 88% of the stage" box every zoomed diagram uses,
+   so it hugs the image precisely; a percentage-sized img directly inside an
+   inline-block wrapper was tried first, but the wrapper's own auto height made
+   it an indefinite containing block, which silently resolves percentage
+   max-height to "none" -- the image then rendered at its raw file size instead
+   of 88% of the stage. z-index above the image so the button is always
+   clickable regardless of draw order. */
+.zoom-close {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-35%, -35%);
+  z-index: 2;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* The wrapper every zoomed diagram uses, sized in pixels at build time to the
+   same "contain within 88% of the stage" box a bare img would size itself to
+   -- .zoom-close (above) anchors to its top-left corner, and שאלה 5's live
+   labels (not baked into that one bitmap) need a sized container to sit in. */
+.zoom-map { position: relative; }
+.zoom-map img { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ---- video -------------------------------------------------------------- */
+.video-slot {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 20px;
+}
+
+.video-slot .play {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  z-index: 20;
+}
+
+.video-slot .caption {
+  position: relative;
+  font: 700 34px "Assistant", sans-serif;
+  color: var(--on-dark);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, .75);
+  text-align: center;
+  margin: 0;
+}
+
+/* ---- score -------------------------------------------------------------- */
+.score-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  background: rgba(0, 0, 0, .6);
+  z-index: 60;
+}
+
+.score-overlay.open { display: grid; }
+
+.score-card {
+  position: relative;
+  width: 900px;
+  background: #FCFCFC;
+  border: 7px solid #000;
+  border-radius: 40px;
+  padding: 54px 60px;
+  font-size: 40px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.score-card p { margin: 0 0 12px; }
+.score-card .big { font-size: 60px; font-weight: 700; }
+
+.score-close {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* ---- nudge -------------------------------------------------------------- */
+.nudge {
+  position: absolute;
+  left: 278px;
+  top: 892px;
+  width: 470px;
+  z-index: 25;
+  opacity: 0;
+  transition: opacity .18s ease;
+  font-size: 26px;
+  font-weight: 600;
+  color: #A32828;
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px 14px;
+  pointer-events: none;
+}
+
+.nudge.show { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nudge, .hit { transition: none; }
+}
+
+/* ---- title splash (screen 1) --------------------------------------------- */
+.start-btn {
+  position: absolute;
+  z-index: 20;
+  border-radius: 18px;
+  background: #0f2740;
+  color: #fff;
+  border: 3px solid #fff;
+  font-family: "Assistant", sans-serif;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .35);
+}
+
+.start-btn:hover { background: #1d4a72; }
+.start-btn:focus-visible { outline: 4px solid #299FD4; outline-offset: 4px; }
+
+/* a pulsing tap cue, so the one interactive thing on an otherwise static screen
+   reads as interactive at a glance */
+.start-btn::after {
+  content: '';
+  position: absolute;
+  z-index: 21;
+  pointer-events: none;
+  left: -22px;
+  bottom: -22px;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: rgba(15, 39, 64, .92) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M9 11.24V7.5C9 6.12 10.12 5 11.5 5S14 6.12 14 7.5v3.74c1.21-.81 2-2.18 2-3.74C16 5.01 13.99 3 11.5 3S7 5.01 7 7.5c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26c-.17-.07-.35-.11-.54-.11H13v-6C13 6.67 12.33 6 11.5 6S10 6.67 10 7.5v10.74l-3.43-.72c-.08-.01-.15-.03-.24-.03-.31 0-.59.13-.79.33l-.79.8 4.94 4.94c.27.27.65.44 1.06.44h6.79c.75 0 1.33-.55 1.44-1.28l.75-5.27c.01-.07.02-.14.02-.2 0-.62-.38-1.16-.92-1.38z'/%3E%3C/svg%3E") center/32px no-repeat;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .4);
+  animation: start-tap-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes start-tap-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-btn::after { animation: none; }
+}
+
+/* ---- video screens (real <video>) -----------------------------------------
+ * Full-bleed, edge to edge -- no white question panel, matching how the video
+ * screens read in the sibling כימיה project.
+ */
+/* z-index explicit (not auto/0) so it always paints above a screen's own
+   background art layers (z>=2) regardless of DOM order -- without this the
+   video was only ever audible, never visible, on video_alon/video_roni. */
+.videoscreen { position: absolute; inset: 0; z-index: 5; background: #000; overflow: hidden; }
+.video-el { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+.video-play {
+  position: absolute;
+  z-index: 12;
+  border-radius: 50%;
+  background: rgba(15, 39, 64, .86);
+  color: #fff;
+  font-size: 60px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 10px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .45);
+  /* play_video_button.png (the .inner img filling this button, see
+     .hit .inner) is itself a fully opaque circle, so the background above is
+     already hidden underneath it in normal use -- opacity on the BUTTON
+     itself is what actually lets the video frame show through, per request
+     (paired with PLAY_BUTTON's own shrink in design.py). */
+  opacity: .65;
+}
+
+.video-play.hidden { display: none; }
+
+.video-cap {
+  position: absolute;
+  left: 50%;
+  bottom: 150px;
+  transform: translateX(-50%);
+  max-width: 1400px;
+  width: max-content;
+  padding: 12px 30px;
+  z-index: 11;
+  background: rgba(0, 0, 0, .62);
+  color: #fff;
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  border-radius: 12px;
+}
+
+.video-cap:empty { display: none; }
+
+/* The narration bubble, on every screen it appears: hidden until script.js adds
+   .in, then floats down and fades in. A screen with a play button (a video, real
+   or the not-yet-delivered placeholder) reveals it on press; one without reveals
+   it immediately in goTo() -- see script.js. Once shown it is not hidden again:
+   "stay until the end" means it should hold for the whole screen/clip, not
+   flicker away partway through. */
+.ribbon-bubble {
+  position: absolute;
+  z-index: 13;
+  opacity: 0;
+  transform: translateY(-24px);
+  transition: opacity .5s ease, transform .5s ease;
+}
+
+.ribbon-bubble.in { opacity: 1; transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ribbon-bubble { transition: none; }
+}
+
+.vctrls {
+  position: absolute;
+  left: var(--vctrl-left);
+  right: var(--vctrl-right);
+  bottom: 0;
+  z-index: 14;
+  height: var(--vctrl-h);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 22px;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, .78), rgba(0, 0, 0, .32));
+}
+
+.vc-btn {
+  flex: 0 0 auto;
+  height: 42px;
+  min-width: 42px;
+  padding: 0 10px;
+  border: 0;
+  cursor: pointer;
+  background: transparent;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vc-btn:hover { background: rgba(255, 255, 255, .16); }
+.vc-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+.vc-time {
+  flex: 0 0 auto;
+  color: #fff;
+  font-size: 17px;
+  min-width: 46px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.vc-seek { flex: 1 1 auto; height: 6px; cursor: pointer; accent-color: #299FD4; }
+.vc-vol { flex: 0 0 92px; width: 92px; height: 6px; cursor: pointer; accent-color: #299FD4; }
+
+/* the gated forward arrow: hidden and inert until script.js clears it */
+#app .hit.nav-fwd.is-gated { visibility: hidden; pointer-events: none; }
+
