@@ -22,6 +22,18 @@
 var TOTAL_SCREENS = 0;
 var currentScreen = 1;
 
+// Tracked independently of the browser's own ":focus-visible" heuristic, which
+// keys off input events INSIDE this document -- a screen change driven from
+// outside it (LOMDA_GOTO from the parent frame in index_dev.html's previewer,
+// or from an embedding LMS) never fires a real keydown/mousedown here, so the
+// heuristic is left in its default state and would show the ring regardless of
+// how the learner is actually navigating. This flag is the ground truth goTo()
+// checks instead, updated only by a real Tab press or a real pointer press in
+// THIS document.
+var usingKeyboard = false;
+document.addEventListener('keydown', function (e) { if (e.key === 'Tab') usingKeyboard = true; });
+document.addEventListener('pointerdown', function () { usingKeyboard = false; });
+
 var lomdaState = {
   screen: 1,
   score: 0,
@@ -124,12 +136,10 @@ function goTo(n) {
     // it exactly as the learner left it, not reset to a blank field.
     showResult(sec);
     if (sec.getAttribute('data-question')) updateSubmitVisibility(sec);
-    // The narration bubble floats in on every screen it appears on. A real
-    // <video> (video1) reveals it once play is pressed -- see initVideo(). Every
-    // other screen -- story, closing, and the placeholder video screens whose
-    // footage has not been delivered, where the play button does not actually
-    // play anything yet -- has nothing to wait for, so it floats in as soon as
-    // the screen is shown, matching what the design's own static renders show.
+    // The narration bubble floats in on every screen it appears on, video
+    // screens included -- it must already be sitting there, fully shown,
+    // before the learner can even reach the play button, not wait for a
+    // 'play' event (see initVideo(), which no longer touches it).
     //
     // Adding .in in the exact same tick as `.active` (display:none -> block,
     // just above) gave the browser nothing to transition from: it had never
@@ -143,7 +153,7 @@ function goTo(n) {
     // point right then, before the next line moves them) rather than waiting
     // for a future frame at all.
     var bub = $('.ribbon-bubble', sec);
-    var revealBub = bub && !$('.video-el', sec);
+    var revealBub = !!bub;
     // A question screen's own text/options float in the same way, but has no
     // bubble to piggyback the reflow on -- read layout on the SECTION itself
     // instead, which forces the same commit-then-transition sequence (see the
@@ -154,7 +164,12 @@ function goTo(n) {
       if (revealBub) bub.classList.add('in');
       floatEls.forEach(function (el) { el.classList.add('in'); });
     }
-    var focusable = $('.q-input, .opt input, .btn-check, .nav-fwd', sec);
+    // Moving focus onto the new screen's first control is for keyboard/screen-
+    // reader users stepping through with Tab -- gated on usingKeyboard (see its
+    // declaration) so a mouse/touch learner, or a screen change driven from
+    // outside this document entirely, never has focus silently placed on an
+    // option for them, with the blue ring that comes with it.
+    var focusable = usingKeyboard && $('.q-input, .opt input, .btn-check, .nav-fwd', sec);
     if (focusable) { try { focusable.focus({ preventScroll: true }); } catch (e) {} }
   }
   post('LOMDA_SCREEN_CHANGED');
@@ -371,15 +386,14 @@ var FB_GRID = 8;
 // rule is display:none instead, which already drops out via the
 // offsetWidth/Height checks below -- no entry needed there. q2a's applet no
 // longer shrinks once graded, so it no longer needs an entry either.
+// Despite the name, also covers q1c's dia-ans -- it GROWS (scale(1.15), see
+// index.html) rather than shrinking, but boxOf() needs telling its real size
+// either way.
 var GRADED_SHRINK = {
   q5: {sel: '.graphic', scale: 0.55},
   q7: {sel: '.graphic', scale: 0.85},
+  q1c: {sel: '.graphic', scale: 1.15},
 };
-
-// Mirrors BANK_GRADED_X/BANK_GRADED_Y0/BANK_GRADED_PITCH in design.py -- q4's
-// leftover-token animation target once graded (see showResult()'s drag
-// branch). Keep the two in sync.
-var GRADED_BANK_COL = {x: 190, y0: 330, pitch: 101 + 14};
 
 function boxOf(el, sec) {
   var l = 0, t = 0, n = el;
@@ -398,16 +412,9 @@ function visibleBoxes(sec, panel) {
   var graded = sec.classList.contains('graded');
   $$(FB_OCCUPIED, sec).forEach(function (el) {
     if (el === panel || panel.contains(el)) return;
-    // Once graded, a leftover .cell.token is mid-animation to
-    // GRADED_BANK_COL (see showResult()'s drag branch), out of the panel's
-    // way on purpose -- and offsetLeft/offsetTop on a property under an
-    // active CSS transition reflects the CURRENT INTERPOLATED value, not the
-    // animation's target, so measuring it here is unreliable (it read the
-    // pre-move position entirely, not even a mid-flight one, when checked:
-    // querying it in the same tick as the style change that starts the
-    // transition raced the transition itself, same class of bug the reveal
-    // animation in goTo() already has a long comment about). Skip it rather
-    // than measure a value that cannot be trusted either way.
+    // Once graded, a leftover (never-dragged) .cell.token is hidden (see
+    // showResult()'s drag branch) and already caught by the offsetWidth/
+    // offsetHeight check below; skipped explicitly here too for clarity.
     if (graded && el.classList.contains('token')) return;
     if (!el.offsetWidth || !el.offsetHeight) return;      // display:none
     var cs = getComputedStyle(el);
@@ -680,18 +687,20 @@ function initVideo(sec) {
   var v = $('.video-el', sec);
   if (!v) return;
   var playBtn = $('.video-play', sec);
+  var replayBtn = $('.video-replay', sec);
   var cap = $('.video-cap', sec);
   var capSrc = $('.vcap-src', sec);
   var CAPS = capSrc ? $$('[data-t]', capSrc).map(function (n) {
     return { t: parseFloat(n.getAttribute('data-t')), text: n.textContent };
   }) : [];
   var CLEAR_AFTER = capSrc ? parseFloat(capSrc.getAttribute('data-clear-after')) : 1e9;
+  var ccBtn = $('[data-cc]', sec);
   var ppBtn = $('[data-play]', sec), seek = $('[data-seek]', sec);
   var curEl = $('[data-cur]', sec), durEl = $('[data-dur]', sec);
   var muteBtn = $('[data-mute]', sec), volEl = $('[data-vol]', sec);
   var fullBtn = $('[data-full]', sec);
   var navFwd = $('.nav-fwd', sec);
-  var raf = null, seeking = false, PLAY = '▶', PAUSE = '❚❚';
+  var raf = null, seeking = false, suppressSeekCap = false, PLAY = '▶', PAUSE = '❚❚';
 
   function fmt(s) {
     s = Math.max(0, Math.floor(s || 0));
@@ -722,6 +731,13 @@ function initVideo(sec) {
   }
 
   if (playBtn) playBtn.addEventListener('click', play);
+  if (replayBtn) replayBtn.addEventListener('click', function () { v.currentTime = 0; play(); });
+  if (ccBtn) ccBtn.addEventListener('click', function () {
+    var on = ccBtn.getAttribute('aria-pressed') !== 'true';
+    ccBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    ccBtn.classList.toggle('is-off', !on);
+    if (cap) cap.classList.toggle('cc-hidden', !on);
+  });
   if (ppBtn) ppBtn.addEventListener('click', function () { if (v.paused) play(); else v.pause(); });
   if (seek) {
     seek.addEventListener('input', function () {
@@ -752,29 +768,35 @@ function initVideo(sec) {
   });
 
   v.addEventListener('loadedmetadata', function () { if (durEl) durEl.textContent = fmt(v.duration); });
-  var bubble = $('.ribbon-bubble', sec);
   v.addEventListener('play', function () {
     if (playBtn) playBtn.classList.add('hidden');
+    if (replayBtn) replayBtn.classList.add('hidden');
     if (ppBtn) ppBtn.textContent = PAUSE;
     if (raf) cancelAnimationFrame(raf);
     raf = requestAnimationFrame(tick);
-    // floats in on first play; classList.add is a no-op on a later resume, so no
-    // "first play only" guard is needed. The reflow-then-add pairing matches the
-    // immediate-reveal path in goTo() -- see the comment there.
-    if (bubble) { void bubble.offsetWidth; bubble.classList.add('in'); }
   });
   v.addEventListener('pause', function () { if (ppBtn) ppBtn.textContent = PLAY; });
   v.addEventListener('ended', function () {
     if (ppBtn) ppBtn.textContent = PLAY;
     setCap(1e9);
     sec._videoDone = true;
+    // Some browsers paint a blank/black frame right at the end of playback
+    // instead of holding the true last frame; stepping back a hair repaints
+    // it. The resulting 'seeked' event must not re-show a caption, though --
+    // suppressSeekCap skips that one caption update (see the 'seeked' handler).
+    suppressSeekCap = true;
+    try { v.currentTime = Math.max(0, v.duration - 0.05); } catch (e) {}
+    if (replayBtn) replayBtn.classList.remove('hidden');
     // lift the gate: visible and usable, on THIS screen's own forward arrow
     if (navFwd) {
       navFwd.classList.remove('is-gated');
       navFwd.disabled = false;
     }
   });
-  v.addEventListener('seeked', function () { setCap(v.currentTime); });
+  v.addEventListener('seeked', function () {
+    if (suppressSeekCap) { suppressSeekCap = false; return; }
+    setCap(v.currentTime);
+  });
   v.addEventListener('timeupdate', function () { if (v.paused) syncBar(); });
 }
 
@@ -811,6 +833,7 @@ function showResult(sec) {
     sec.classList.remove('graded');
     $$('.q-input, .opt input, .cell.token, .cell.slot-cell', sec)
       .forEach(function (el) { el.disabled = false; });
+    $$('.cell.token', sec).forEach(function (t) { t.style.display = ''; });
     if (navFwd && navFwd.hasAttribute('data-gate')) {
       navFwd.classList.add('is-gated');
       navFwd.disabled = true;
@@ -886,18 +909,11 @@ function showResult(sec) {
         slot.classList.remove('is-wrong');
       }
     });
-    // Per request: the tokens never dragged into a slot animate up to a
-    // column out of the feedback panel's way (BANK_GRADED_X/Y0/PITCH in
-    // design.py -- mirrored here as GRADED_BANK_COL, same as GRADED_SHRINK
-    // above mirrors a design.py constant). Packed in order among only the
-    // ones actually left (not one fixed slot per token), so two leftovers
-    // land adjacent with no gap between them regardless of which two of the
-    // five they are.
+    // Per request: the tokens never dragged into a slot are hidden once
+    // graded, rather than left sitting unused in the bank -- a leftover
+    // block next to the revealed answer read as confusing.
     $$('.cell.token', sec).filter(function (t) { return !t.classList.contains('used'); })
-      .forEach(function (t, i) {
-        t.style.left = GRADED_BANK_COL.x + 'px';
-        t.style.top = (GRADED_BANK_COL.y0 + i * GRADED_BANK_COL.pitch) + 'px';
-      });
+      .forEach(function (t) { t.style.display = 'none'; });
   }
 
   // Placed LAST, once the heading, the pill and the marks are all written: the

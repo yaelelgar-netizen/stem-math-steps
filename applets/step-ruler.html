@@ -18,36 +18,37 @@
   html,body{height:100%;overflow:hidden;}
   body{margin:0;font-family:'Assistant',Arial,sans-serif;color:var(--ink);background:#fff;}
   .app{max-width:1100px;height:100%;margin:0 auto;padding:10px 16px;display:flex;flex-direction:column;}
-  /* The top two lines carry the applet's own title and instructions -- bigger
-     and bolder than the rest, which is body/label text by comparison. */
-  h1{font-size:40px;margin:0 0 2px;color:var(--blue);font-weight:800;}
-  .sub{margin:0 0 10px;color:var(--muted);font-size:22px;font-weight:700;}
-  .modebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
-  .modebar .lbl{font-size:20px;color:var(--muted);font-weight:600;}
-  .modebar button{font-family:inherit;font-size:19px;padding:8px 18px;border:1px solid var(--blue);background:#fff;color:var(--blue);border-radius:22px;cursor:pointer;font-weight:600;}
+  /* The top two lines carry the applet's own title and instructions -- bigger,
+     bolder and centred (per request, matching the stem-chem-volume applets'
+     own centred .header) rather than sitting left of the panel like body text. */
+  h1{font-size:52px;margin:0 0 4px;color:var(--blue);font-weight:800;text-align:center;}
+  .sub{margin:0 0 14px;color:var(--muted);font-size:28px;font-weight:700;text-align:center;}
+  .modebar{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .modebar .lbl{font-size:24px;color:var(--muted);font-weight:600;}
+  .modebar button{font-family:inherit;font-size:23px;padding:10px 22px;border:1px solid var(--blue);background:#fff;color:var(--blue);border-radius:26px;cursor:pointer;font-weight:600;}
   .modebar button.active{background:var(--blue);color:#fff;}
-  .fields{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
-  .field{background:#f4f7f9;border:1px solid #dbe6ec;border-radius:12px;padding:6px 8px;flex:1;min-width:180px;}
+  .fields{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;}
+  .field{background:#f4f7f9;border:1px solid #dbe6ec;border-radius:12px;padding:8px 10px;flex:1;min-width:180px;}
   .field.result{background:#eef6e7;border-color:#bcd99a;}
-  .field label{display:block;font-size:16px;color:var(--muted);margin-bottom:2px;font-weight:600;}
-  .field input[type=number]{width:100%;font-size:40px;font-weight:700;padding:4px 6px;border:1px solid #cdd8de;border-radius:8px;text-align:center;font-family:inherit;}
-  .field .out{font-size:48px;font-weight:700;color:var(--green-d);text-align:center;padding:0;}
-  .field .units{display:flex;gap:6px;margin-top:4px;justify-content:center;}
-  .field .units button{font-family:inherit;font-size:16px;padding:4px 10px;border:1px solid var(--blue);background:#fff;color:var(--blue);border-radius:14px;cursor:pointer;}
+  .field label{display:block;font-size:20px;color:var(--muted);margin-bottom:4px;font-weight:600;}
+  .field input[type=number]{width:100%;font-size:46px;font-weight:700;padding:4px 6px;border:1px solid #cdd8de;border-radius:8px;text-align:center;font-family:inherit;}
+  .field .out{font-size:54px;font-weight:700;color:var(--green-d);text-align:center;padding:0;}
+  .field .units{display:flex;gap:8px;margin-top:6px;justify-content:center;}
+  .field .units button{font-family:inherit;font-size:19px;padding:5px 12px;border:1px solid var(--blue);background:#fff;color:var(--blue);border-radius:14px;cursor:pointer;}
   .field .units button.active{background:var(--blue);color:#fff;}
   /* Thinner grey mat around the ruler stage than before, trading padding for
      bigger tick-label/unit-badge text (see .ticklbl/.runit below). */
   .stage{background:#cfd6d9;border-radius:12px;padding:6px 10px 14px;margin-bottom:10px;direction:ltr;flex:1;min-height:0;display:flex;}
-  .track{position:relative;width:100%;height:160px;margin:auto 0;}
+  .track{position:relative;width:100%;height:180px;margin:auto 0;}
   .print{position:absolute;}
   .print svg{width:100%;height:auto;display:block;overflow:visible;}
   .trail{position:absolute;height:26px;border-radius:13px;background:var(--green);border:3px solid var(--green-d);}
-  .traillab{position:absolute;transform:translateX(-50%);font-weight:700;color:var(--green-d);font-size:18px;background:rgba(255,255,255,.8);padding:1px 10px;border-radius:10px;}
+  .traillab{position:absolute;transform:translateX(-50%);font-weight:700;color:var(--green-d);font-size:22px;background:rgba(255,255,255,.8);padding:2px 12px;border-radius:10px;}
   .ruler{position:absolute;height:24px;background:var(--tape);border-radius:5px;border:1px solid var(--tape-d);}
   .tick{position:absolute;width:2px;background:var(--tape-d);}
-  .ticklbl{position:absolute;transform:translateX(-50%);font-size:30px;color:var(--tape-d);white-space:nowrap;font-weight:800;}
-  .runit{position:absolute;background:var(--tape-d);color:#fff;font-weight:700;font-size:24px;padding:3px 12px;border-radius:9px;white-space:nowrap;transform:translate(-50%,-50%);}
-  .equiv{text-align:center;color:var(--muted);font-size:26px;font-weight:600;}
+  .ticklbl{position:absolute;transform:translateX(-50%);font-size:34px;color:var(--tape-d);white-space:nowrap;font-weight:800;}
+  .runit{position:absolute;background:var(--tape-d);color:#fff;font-weight:700;font-size:28px;padding:4px 14px;border-radius:9px;white-space:nowrap;transform:translate(-50%,-50%);}
+  .equiv{text-align:center;color:var(--muted);font-size:30px;font-weight:600;}
 </style>
 </head>
 <body>

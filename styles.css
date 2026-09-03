@@ -390,10 +390,24 @@ html, body {
   pointer-events: none;
 }
 
+/* A checkbox's .dot carries a 2px border (unlike a radio's borderless ring
+   artwork), and border-box sizing means that border eats into the SAME box
+   the mark's "inset:4px" above is measured against -- so on a checkbox the
+   glyph rendered at barely 7px square instead of the radio's 11px, reading as
+   much fainter even though both are the same SVG at the same font-size.
+   2px (not 4px) compensates for exactly that border, restoring the same 11px
+   glyph size as a radio's mark. */
+.opt input[type="checkbox"] ~ .dot .mark { inset: 2px; }
+
 .opt.was-right .mark.ok { display: block; }
 .opt.was-picked:not(.was-right) .mark.no { display: block; }
 .opt input:disabled ~ .txt { opacity: .9; }
-.opt:focus-within { outline: 3px solid #299FD4; outline-offset: 6px; border-radius: 8px; }
+/* :focus-within alone would ring the pill for the *programmatic* focus() that
+   goTo() sets on the first option after every screen change (see script.js),
+   showing a blue frame nobody asked for on plain mouse/touch use. :has(:focus-
+   visible) only matches when the browser's own heuristic says this focus came
+   from keyboard navigation, matching every other focus ring in this file. */
+.opt:has(input:focus-visible) { outline: 3px solid #299FD4; outline-offset: 6px; border-radius: 8px; }
 
 /* ---- drag chain --------------------------------------------------------- */
 .cell {
@@ -959,6 +973,11 @@ html, body {
 
 .video-play.hidden { display: none; }
 
+/* replay button: shown centre-stage once the video has ended, in place of the
+   play button -- same circle, a refresh-arrow glyph instead of a triangle. */
+.video-replay { position: absolute; z-index: 12; border-radius: 50%; opacity: .65; }
+.video-replay.hidden { display: none; }
+
 .video-cap {
   position: absolute;
   left: 50%;
@@ -978,6 +997,7 @@ html, body {
 }
 
 .video-cap:empty { display: none; }
+.video-cap.cc-hidden { display: none; }
 
 /* The narration bubble, on every screen it appears: hidden until script.js adds
    .in, then floats down and fades in. A screen with a play button (a video, real
@@ -1033,6 +1053,8 @@ html, body {
 
 .vc-btn:hover { background: rgba(255, 255, 255, .16); }
 .vc-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.vc-cc { font-size: 18px; font-weight: 800; letter-spacing: 1px; border: 2px solid #fff; padding: 0 12px; }
+.vc-cc.is-off { opacity: .5; text-decoration: line-through; }
 
 .vc-time {
   flex: 0 0 auto;
